@@ -1,4 +1,4 @@
-![Build and Test](https://github.com/simplito/ecies-erl/actions/workflows/erlang.yml/badge.svg)
+[![Build and Test](https://github.com/simplito/ecies-erl/actions/workflows/erlang.yml/badge.svg)](https://github.com/simplito/ecies-erl/actions/workflows/erlang.yml)
 [![Hex](https://img.shields.io/hexpm/v/ecies.svg)](https://hex.pm/packages/ecies)
 
 Customizable Erlang native ECIES public-key cryptography library
