@@ -1,0 +1,9 @@
+{application, ecies,
+ [{description, "Customizable Erlang native ECIES public-key cryptography library"},
+  {vsn, "1.0.0"},
+  {registered, []},
+  {applications, [kernel, stdlib, crypto]},
+  {maintainers, ["Sebastian Smyczyński"]},
+  {licenses, ["MIT"]},
+  {links, []}
+ ]}.
