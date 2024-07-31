@@ -1,3 +1,5 @@
+![Build and Test](https://github.com/simplito/ecies-erl/actions/workflows/erlang.yml/badge.svg)
+
 Customizable Erlang native ECIES public-key cryptography library
 ================================================================
 
