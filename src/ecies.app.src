@@ -5,5 +5,5 @@
   {applications, [kernel, stdlib, crypto]},
   {maintainers, ["Sebastian Smyczyński"]},
   {licenses, ["MIT"]},
-  {links, []}
+  {links, [{"Github", "https://github.com/simplito/ecies-erl"}]}
  ]}.
