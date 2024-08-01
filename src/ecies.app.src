@@ -1,5 +1,5 @@
 {application, ecies,
- [{description, "Customizable Erlang native ECIES public-key cryptography library"},
+ [{description, "Customizable Erlang native ECIES public-key cryptography library, providing elliptic curve encryption as an alternative to the deprecated crypto public_encrypt, private_decrypt functions"},
   {vsn, "1.0.0"},
   {registered, []},
   {applications, [kernel, stdlib, crypto]},

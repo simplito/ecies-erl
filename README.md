@@ -4,7 +4,7 @@
 Customizable Erlang native ECIES public-key cryptography library
 ================================================================
 
-An Erlang native library implementing the ECIES (Elliptic Curve Integrated Encryption Scheme) public-key cryptography.  
+An Erlang native library implementing the ECIES (Elliptic Curve Integrated Encryption Scheme) public-key cryptography, providing elliptic curve encryption as an alternative to the deprecated `crypto` `public_encrypt`, `private_decrypt` functions.
 
 Motivation
 ----------
@@ -23,9 +23,9 @@ Usage
 -----
 
 The API of library is simple:
-- `ecies:generate_key/0,1`- can be used to generate public/private key pair
-- `ecies:public_encrypt/2,3` - for encrypting binary message with given public key
-- `ecies:private_decrypt/2,3` - for decrypting data using private key corresponding to public key used in public_encrypt
+- `ecies:generate_key/0`- can be used to generate public/private key pair
+- `ecies:public_encrypt/2` - for encrypting binary message with given public key
+- `ecies:private_decrypt/2` - for decrypting data using private key corresponding to public key used in `public_encrypt`
 
 Example: 
 

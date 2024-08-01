@@ -1,22 +1,33 @@
 -module(ecies).
 
 -export([
-  supports/1,
-  
-  default_params/0,
-  
   generate_key/0,
   public_encrypt/2,
   private_decrypt/2,
   
   generate_key/1,
   public_encrypt/3,
-  private_decrypt/3
+  private_decrypt/3,
+
+  default_params/0,
+  supports/1
 ]).
 
 -export([
   kdf/4,
   compress_pubkey/1
+]).
+
+-export_type([
+  public_key/0,
+  private_key/0,
+  named_curve/0,
+  ecies_params/0,
+  cipher/0,
+  digest_type/0,
+  kdf_type/0,
+  mac_type/0,
+  encrypted_data/0
 ]).
 
 -type named_curve() :: crypto:ec_named_curve() | x25519 | x448.
@@ -39,7 +50,7 @@
 -type private_key() :: binary().
 -type plain_text()  :: iodata().
 -type cipher_text() :: binary().
--type auth_tag()    :: auth_tag().
+-type auth_tag()    :: binary(). % message authentication tag
 -type encrypted_data() :: binary() | {public_key(), cipher_text(), MAC :: auth_tag()}.
 -type kdf_type()    :: {hkdf, digest_type()} |
                        {kdf, digest_type()}  |
@@ -65,6 +76,7 @@
     iv  => binary() | random | fun(),       % if specified used instead of default 0000..00 one
 
     embedded_iv => boolean(),
+    generate_key => fun(),
     shared_key => binary() | fun(),
     derive_keys => fun(),
     prepare_payload => fun(),
@@ -73,6 +85,7 @@
   }.
 
 
+%% @doc Returns list of supported curves, ciphers and digest types (hashs) that can be used with `ecies' library
 -spec supports(hashs)  -> [digest_type()];
               (curves) -> [named_curve()];
               (ciphers) -> [cipher()];
@@ -96,6 +109,10 @@ supports(aead_ciphers) ->
   [aes_ccm, aes_gcm, aes_128_ccm, aes_128_gcm, aes_192_ccm, aes_192_gcm, aes_256_ccm, aes_256_gcm, chacha20_poly1305].
 
 
+%% @doc Default elliptic curve `secp256k1' and set of algorithms used for ECIES encryption/decryption.
+%%
+%% By default ANSI-X9.63 key derivation function is used with AES-256 CBC encryption and 
+%% HMAC-SHA256 with 256 bits output authentication tag
 -spec default_params() -> ecies_params().
 default_params() ->
   #{
@@ -105,11 +122,16 @@ default_params() ->
     mac    => {hmac, sha256, 256}  % HMAC SHA256 with 256 bits (32 bytes) output
   }.
 
+
+%% @doc Generates a new key pair for default `secp256k1' curve
+%%
+%% @equiv generate_key(default_params())
 -spec generate_key() -> {public_key(), private_key()}.
 generate_key() ->
   generate_key(default_params()).
 
-%-spec generate_key(#{ curve => named_curve(), compress_pubkey => boolean() }) -> {public_key(), private_key()}.
+%% @doc Generates a new key pair for elliptic curve specified in `Params' under `curve' key.
+-spec generate_key(#{ curve := named_curve(), _ => _ }) -> {public_key(), private_key()}.
 generate_key(#{ curve := Curve } = Params) ->
   CompressPubKey = maps:get(compress_pubkey, Params, true),
   Type = dh_type(Curve),
@@ -120,16 +142,28 @@ generate_key(#{ curve := Curve } = Params) ->
   end.
 
 
--spec public_encrypt(OthersPublicKey :: public_key(), plain_text()) -> binary() | error.
+%% @doc Encrypts the `PlainText' using the `OthersPublicKey' and returns the `CipherText'
+%%
+%% Uses the default curve `secp256k1' and other params returned from `default_params/0'
+%%
+%% @equiv public_encrypt(OthersPublicKey, PlainText, default_params())
+-spec public_encrypt(OthersPublicKey :: public_key(), PlainText :: plain_text()) -> CipherText :: binary().
 public_encrypt(OthersPublicKey, PlainText) ->
   public_encrypt(OthersPublicKey, PlainText, default_params()).
 
--spec private_decrypt(private_key(), encrypted_data()) -> binary() | error.
-private_decrypt(PrivateKey, CipherText) ->
-  private_decrypt(PrivateKey, CipherText, default_params()).
+%% @doc Decrypts the `CipherData' using the `PrivateKey' and returns the `PlainText'
+%%
+%% Uses the default curve `secp256k1' and other params returned from `default_params/0'
+%%
+%% @equiv private_decrypt(PrivateKey, CipherData, default_params())
+-spec private_decrypt(private_key(), encrypted_data()) -> binary().
+private_decrypt(PrivateKey, CipherData) ->
+  private_decrypt(PrivateKey, CipherData, default_params()).
 
-
--spec public_encrypt(OthersPublicKey :: public_key(), plain_text(), ecies_params()) -> encrypted_data() | error.
+%% @doc Encrypts the `PlainText' using the `OthersPublicKey' and returns encrypted data (binary cipher text by default).
+%%
+%% Uses the set of algorithms and elliptic curve defined in `Params' argument  
+-spec public_encrypt(OthersPublicKey :: public_key(), plain_text(), ecies_params()) -> encrypted_data().
 public_encrypt(OthersPublicKey, PlainText, #{} = Params0) ->
   State0 = init_state(Params0#{ others_public_key => OthersPublicKey, plain_text => PlainText }),
   {ok, State1} = generate_ephemeral_key(State0),
@@ -142,6 +176,9 @@ public_encrypt(OthersPublicKey, PlainText, #{} = Params0) ->
   {ok, State8} = authenticate_payload(State7),
   encode_cipher_data(State8).
 
+%% @doc Decrypts the `CipherData' using the `PrivateKey' and returns the `PlainText'
+%%
+%% Uses the set of algorithms and elliptic curve defined in `Params' argument  
 -spec private_decrypt(private_key(), encrypted_data(), ecies_params()) -> binary() | error.
 private_decrypt(PrivateKey, CipherData, #{} = Params0) ->
   try
@@ -237,6 +274,7 @@ prepare_cipher_text_for_decryption(#{} = State) ->
 
 
 % priv
+-spec generate_ephemeral_key(#{ generate_key => _, key => _, _ => _}) -> {ok, #{ key := {public_key(), private_key()}, _ => _}}.
 generate_ephemeral_key(#{ generate_key := GenerateKeyFun } = State) when is_function(GenerateKeyFun) ->
   GenerateKeyFun(State);
 generate_ephemeral_key(#{ key :=  _} = State) ->
@@ -357,6 +395,8 @@ check_expected_mac(State) ->
     false -> error
   end.
 
+%% @doc Executes Key Derivation Function for given arguments using function defined in `Params'
+%% @private
 kdf(SharedKey, Info, Length, #{kdf := {hkdf, Hash}} = Params) ->
   Salt = maps:get(hkdf_salt, Params, <<>>),
   ecies_kdf:hkdf(Hash, SharedKey, Salt, Info, Length);
@@ -399,6 +439,10 @@ dh_type(x25519) -> eddh;
 dh_type(x448)   -> eddh;
 dh_type(_Curve) -> ecdh.
 
+%% @doc Utility function for compressing binary elliptic curve point representation
+%% 
+%% Not valid for `x25519' and `x448' curves.
+%% @private
 compress_pubkey(<<2,_/binary>> = PubKey) -> PubKey;
 compress_pubkey(<<3,_/binary>> = PubKey) -> PubKey;
 compress_pubkey(<<4,XY/binary>>) ->
