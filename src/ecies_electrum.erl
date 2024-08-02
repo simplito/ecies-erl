@@ -1,6 +1,6 @@
 -module(ecies_electrum).
 
--export([default_params/0, params/1, is_supported/0]).
+-export([default_params/0, params/1]).
 
 default_params() ->
   #{
@@ -17,19 +17,11 @@ default_params() ->
 params(Params) ->
   maps:merge(default_params(), Params).
 
-is_supported() ->
-  erlang:function_exported(libsecp256k1, ec_pubkey_tweak_mul, 2).
-
 % electrum specific overrides
 shared_key(#{ others_public_key := OthersPublicKey, key := {_PublicKey, PrivateKey} } = State) ->
   % electrum is using modified ECDH with full (but compresses) public key as output, instead of just x coordinate
-  case is_supported() of
-    true ->
-      {ok, SharedKey} = erlang:apply(libsecp256k1, ec_pubkey_tweak_mul, [OthersPublicKey, PrivateKey]),
-      {ok, State#{ shared_key => SharedKey }};
-    false ->
-      error(unsupported)
-  end.
+  SharedKey = ecies_pubkey:compress(ecies_pubkey:mul(OthersPublicKey, PrivateKey, State), default_params()),
+  {ok, State#{ shared_key => SharedKey }}.
 
 derive_keys(#{ shared_key := SharedKey } =  State) ->
   % non standard key derivation with iv derivation instead of using standard 0000..00 or iv embedded in payload

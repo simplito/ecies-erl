@@ -14,11 +14,11 @@
 ]).
 
 -export([
-  kdf/4,
-  compress_pubkey/1
+  kdf/4
 ]).
 
 -export_type([
+  keypair/0,
   public_key/0,
   private_key/0,
   named_curve/0,
@@ -48,6 +48,7 @@
                        chacha20_poly1305.
 -type public_key()  :: binary().
 -type private_key() :: binary().
+-type keypair()     :: {public_key(), private_key()}.
 -type plain_text()  :: iodata().
 -type cipher_text() :: binary().
 -type auth_tag()    :: binary(). % message authentication tag
@@ -72,7 +73,7 @@
     s1  => binary(),   % shared info 1 (used with kdf) - default empty
     s2  => binary(),   % shared info 2 (used with mac), used as AAD for aead mac - default empty
 
-    key => {public_key(), private_key()},   % if specified it is used in encryption instead of generating ephemeral key
+    key => keypair(),  % if specified it is used in encryption instead of generating ephemeral key
     iv  => binary() | random | fun(),       % if specified used instead of default 0000..00 one
 
     embedded_iv => boolean(),
@@ -126,18 +127,19 @@ default_params() ->
 %% @doc Generates a new key pair for default `secp256k1' curve
 %%
 %% @equiv generate_key(default_params())
--spec generate_key() -> {public_key(), private_key()}.
+-spec generate_key() -> keypair().
 generate_key() ->
   generate_key(default_params()).
 
 %% @doc Generates a new key pair for elliptic curve specified in `Params' under `curve' key.
--spec generate_key(#{ curve := named_curve(), _ => _ }) -> {public_key(), private_key()}.
-generate_key(#{ curve := Curve } = Params) ->
+-spec generate_key(#{ curve := named_curve(), _ => _ }) -> keypair().
+generate_key(#{ curve := Curve } = Params0) ->
+  Params = maps:merge(default_params(), Params0),
   CompressPubKey = maps:get(compress_pubkey, Params, true),
   Type = dh_type(Curve),
   {Pub, Priv} = crypto:generate_key(Type, Curve),
   case CompressPubKey andalso Type == ecdh of
-    true  -> {compress_pubkey(Pub), Priv};
+    true  -> {ecies_pubkey:compress(Pub, Params), Priv};
     false -> {Pub, Priv}
   end.
 
@@ -274,7 +276,7 @@ prepare_cipher_text_for_decryption(#{} = State) ->
 
 
 % priv
--spec generate_ephemeral_key(#{ generate_key => _, key => _, _ => _}) -> {ok, #{ key := {public_key(), private_key()}, _ => _}}.
+-spec generate_ephemeral_key(#{ generate_key => _, key => _, _ => _}) -> {ok, #{ key := keypair(), _ => _}}.
 generate_ephemeral_key(#{ generate_key := GenerateKeyFun } = State) when is_function(GenerateKeyFun) ->
   GenerateKeyFun(State);
 generate_ephemeral_key(#{ key :=  _} = State) ->
@@ -438,23 +440,6 @@ mac_length(#{ mac := {cmac, _Cipher, MacBits}} = _Params) -> MacBits div 8.
 dh_type(x25519) -> eddh;
 dh_type(x448)   -> eddh;
 dh_type(_Curve) -> ecdh.
-
-%% @doc Utility function for compressing binary elliptic curve point representation
-%% 
-%% Not valid for `x25519' and `x448' curves.
-%% @private
-compress_pubkey(<<2,_/binary>> = PubKey) -> PubKey;
-compress_pubkey(<<3,_/binary>> = PubKey) -> PubKey;
-compress_pubkey(<<4,XY/binary>>) ->
-  try
-    L = byte_size(XY) div 2,
-    <<X:L/bytes, Y:L/bytes>> = XY,
-    <<(2 + binary:last(Y) band 1), X/binary>>
-  catch _:_ ->
-    error(badarg)
-  end;
-compress_pubkey(_PubKey) ->
-  error(badarg).
 
 public_key_length(x25519, _Data) -> 32;
 public_key_length(x448, _Data)   -> 56;

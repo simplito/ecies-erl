@@ -62,9 +62,6 @@ We also provide default params compatible with existing ECIES variants used in s
 - `ecies_geth:default_params/0`, `ecies_geth:params_from_curve/1` - compatible with [ethereum's geth](https://github.com/ethereum/go-ethereum) ECIES implementation
 - `ecies_electrum:default_params/0` - compatible with [Electrum](https://github.com/spesmilo/electrum), [Electron Cash](https://github.com/Electron-Cash/Electron-Cash) and [ElectrumSV](https://github.com/electrumsv/electrumsv) ECIES implementation (see also [here](https://github.com/gitzhou/bitcoin-ecies))
 
-> [!NOTE]
-> Electrum related functions requires [libsecp256k1](https://hex.pm/packages/libsecp256k1) dependency in your project. We also provide function `ecies_electrum:is_supported/0`[^1] 
-
 Example 1:
 ```erlang
 % Alice and Bob agrees on the following params
@@ -127,6 +124,3 @@ For message authentication (`mac` param):
 License
 -------
 `ecies` library is MIT-licensed, as per [LICENSE.md](LICENSE.md).
-
-[^1]: Unfortunately Electrum uses full compressed point from Diffie-Hellman step of calculating shared key 
-instead of usual x coordinate, and erlang's `crypto:compute_key` is not enough to calculate this. 
