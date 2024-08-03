@@ -1,7 +1,7 @@
 -module(ecies_pubkey).
 
 -export([
- compress/1,
+  compress/1,
   compress/2,
   decompress/1,
   decompress/2,

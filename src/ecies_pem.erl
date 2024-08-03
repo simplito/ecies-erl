@@ -27,24 +27,19 @@ encode_public(PublicKey) ->
 
 encode_public(PublicKey, #{ curve := NamedCurve }) ->
   NamedCurveOid = pubkey_cert_records:namedCurves(NamedCurve),
-  AlgorithmIdentifier = {#'ECPoint'{point = PublicKey}, {namedCurve, NamedCurveOid}},
-  public_key:pem_encode([public_key:pem_entry_encode('SubjectPublicKeyInfo', AlgorithmIdentifier)]).
+  Entity = {#'ECPoint'{point = PublicKey}, {namedCurve, NamedCurveOid}},
+  public_key:pem_encode([public_key:pem_entry_encode('SubjectPublicKeyInfo', Entity)]).
 
 decode_public(Pem) ->
   decode_public(Pem, ecies:default_params()).
 
 decode_public(Pem, #{} = Params) ->
-  case public_key:pem_decode(Pem) of
-    [{'SubjectPublicKeyInfo', AlgorithmIdentifierDER, not_encrypted}] ->
-      case public_key:der_decode('SubjectPublicKeyInfo', AlgorithmIdentifierDER) of
-        #'SubjectPublicKeyInfo'{subjectPublicKey = PublicKey} ->
-          case maps:get(compress_pubkey, Params, true) of
-            true  -> ecies_pubkey:compress(PublicKey, Params);
-            false -> ecies_pubkey:decompress(PublicKey, Params)
-         end;
-        _ -> error
-      end;
-    _ -> error
+  try
+    PemEntry = lists:keyfind('SubjectPublicKeyInfo', 1, public_key:pem_decode(Pem)),
+    {#'ECPoint'{point = PublicKey0}, {namedCurve, NamedCurveOid}} = public_key:pem_entry_decode(PemEntry),
+    PublicKey = normalize_pubkey(PublicKey0, Params),
+    postprocess_decode_result(PublicKey, NamedCurveOid, Params)
+  catch _:_ -> error
   end.
 
 -spec encode_private(ecies:private_key()) -> binary().
@@ -54,8 +49,11 @@ encode_private(PrivateKey) ->
 -spec encode_private(ecies:private_key(), #{ curve := ecies:named_curve(), _ => _}) -> binary().
 encode_private(PrivateKey, #{ curve := NamedCurve }) ->
   NamedCurveOid = pubkey_cert_records:namedCurves(NamedCurve),
-  AlgorithmIdentifier = #'ECPrivateKey'{privateKey = PrivateKey, parameters = {namedCurve, NamedCurveOid}, version=1},
-  public_key:pem_encode([public_key:pem_entry_encode('PrivateKeyInfo', AlgorithmIdentifier)]).
+  ECPrivateKey = #'ECPrivateKey'{
+    privateKey = PrivateKey,
+    parameters = {namedCurve, NamedCurveOid},
+    version=1},
+  public_key:pem_encode([public_key:pem_entry_encode('ECPrivateKey', ECPrivateKey)]).
 
 -spec decode_private(Pem :: binary()) -> ecies:private_key() | error.
 decode_private(Pem) ->
@@ -66,8 +64,10 @@ decode_private(Pem) ->
         (Pem :: binary(), #{ verify_curve => boolean(), _ => _ }) -> ecies:private_key() | error.
 decode_private(Pem, #{} = Params) ->
   try
-    [{'PrivateKeyInfo', AlgorithmIdentifierDER, not_encrypted}] = public_key:pem_decode(Pem),
-    #'ECPrivateKey'{privateKey = PrivateKey, parameters = {namedCurve, NamedCurveOid}} = public_key:der_decode('PrivateKeyInfo', AlgorithmIdentifierDER),
+    PemEntry = lists:keyfind('ECPrivateKey', 1, public_key:pem_decode(Pem)),
+    #'ECPrivateKey'{
+      privateKey = PrivateKey,
+      parameters = {namedCurve, NamedCurveOid}} = public_key:pem_entry_decode(PemEntry),
     postprocess_decode_result(PrivateKey, NamedCurveOid, Params)
   catch _:_ ->
     error
@@ -80,8 +80,8 @@ encode_keypair(KeyPair) ->
 -spec encode_keypair(ecies:keypair(), #{ curve := ecies:named_curve(), _ => _}) -> binary().
 encode_keypair({PublicKey, PrivateKey}, #{ curve := NamedCurve }) ->
   NamedCurveOid = pubkey_cert_records:namedCurves(NamedCurve),
-  AlgorithmIdentifier = #'ECPrivateKey'{privateKey = PrivateKey, publicKey = PublicKey, parameters = {namedCurve, NamedCurveOid}, version=1},
-  public_key:pem_encode([public_key:pem_entry_encode('PrivateKeyInfo', AlgorithmIdentifier)]).
+  ECPrivateKey = #'ECPrivateKey'{privateKey = PrivateKey, publicKey = PublicKey, parameters = {namedCurve, NamedCurveOid}, version=1},
+  public_key:pem_encode([public_key:pem_entry_encode('ECPrivateKey', ECPrivateKey)]).
 
 -spec decode_keypair(Pem :: binary()) -> ecies:keypair() | error.
 decode_keypair(Pem) ->
@@ -92,8 +92,11 @@ decode_keypair(Pem) ->
   (Pem :: binary(), #{ verify_curve => boolean(), _ => _ }) -> ecies:keypair() | error.
 decode_keypair(Pem, #{} = Params) ->
   try
-    [{'PrivateKeyInfo', AlgorithmIdentifierDER, not_encrypted}] = public_key:pem_decode(Pem),
-    #'ECPrivateKey'{privateKey = PrivateKey, publicKey = PublicKey0, parameters = {namedCurve, NamedCurveOid}} = public_key:der_decode('PrivateKeyInfo', AlgorithmIdentifierDER),
+    PemEntry = lists:keyfind('ECPrivateKey', 1, public_key:pem_decode(Pem)),
+    #'ECPrivateKey'{
+      privateKey = PrivateKey,
+      publicKey = PublicKey0,
+      parameters = {namedCurve, NamedCurveOid}} = public_key:pem_entry_decode(PemEntry),
     PublicKey =
       case PublicKey0 of
         'asn1_NOVALUE' -> ecies_pubkey:from_private(PrivateKey, Params);
