@@ -13,7 +13,7 @@ supported_curves_basic_test_() ->
         ?assertEqual(Priv, ecies_pem:decode_private(ecies_pem:encode_private(Priv, Params), Params)),
         ?assertEqual(KeyPair, ecies_pem:decode_keypair(ecies_pem:encode_keypair(KeyPair, Params),Params)),
         % For now decoding keypair from private key of edward curves is not implemented
-        case ecies_pubkey:supports(Curve) of
+        case ecies_pubkey:supports_from_private(Curve) of
           true -> ?assertEqual(KeyPair, ecies_pem:decode_keypair(ecies_pem:encode_private(Priv, Params), Params));
           false -> ?assertEqual(error, ecies_pem:decode_keypair(ecies_pem:encode_private(Priv, Params), Params))
         end

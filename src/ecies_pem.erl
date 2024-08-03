@@ -1,38 +1,26 @@
+%% @doc
 -module(ecies_pem).
 
 -include_lib("public_key/include/public_key.hrl").
 
 -export([
-  supports/1,
-  
   encode_public/1,
-  encode_public/2,
   decode_public/1,
-  decode_public/2,
-
   encode_private/1,
-  encode_private/2,
   decode_private/1,
-  decode_private/2,
-
   encode_keypair/1,
-  encode_keypair/2,
   decode_keypair/1,
-  decode_keypair/2
+  
+  encode_public/2,
+  decode_public/2,
+  encode_private/2,
+  decode_private/2,
+  encode_keypair/2,
+  decode_keypair/2,
+  
+  supports/1
 ]).
 
-% see `pubkey_cert_records:namedCurves/1`
-supports(curves) ->
-  [
-    sect571r1, sect571k1, sect409r1, sect409k1, secp521r1, secp384r1, secp224r1, secp224k1, secp192k1, secp160r2,
-    secp128r2, secp128r1, sect233r1, sect233k1, sect193r2, sect193r1, sect131r2, sect131r1, sect283r1, sect283k1,
-    sect163r2, secp256k1, secp160k1, secp160r1, secp112r2, secp112r1, sect113r2, sect113r1, sect239k1, sect163r1,
-    sect163k1, secp256r1, secp192r1, x25519, x448, brainpoolP160r1, brainpoolP160t1, brainpoolP192r1, brainpoolP192t1,
-    brainpoolP224r1, brainpoolP224t1, brainpoolP256r1, brainpoolP256t1, brainpoolP320r1, brainpoolP320t1,
-    brainpoolP384r1, brainpoolP384t1, brainpoolP512r1, brainpoolP512t1
-  ];
-supports(NamedCurve) ->
-  lists:member(NamedCurve, supports(curves)).
 
 encode_public(PublicKey) ->
   encode_public(PublicKey, ecies:default_params()).
@@ -135,6 +123,19 @@ postprocess_decode_result(Result, NamedCurveOid, Params) ->
     true -> {NamedCurve, Result};
     false -> Result
   end.
+
+% see `pubkey_cert_records:namedCurves/1`
+supports(curves) ->
+  [
+    sect571r1, sect571k1, sect409r1, sect409k1, secp521r1, secp384r1, secp224r1, secp224k1, secp192k1, secp160r2,
+    secp128r2, secp128r1, sect233r1, sect233k1, sect193r2, sect193r1, sect131r2, sect131r1, sect283r1, sect283k1,
+    sect163r2, secp256k1, secp160k1, secp160r1, secp112r2, secp112r1, sect113r2, sect113r1, sect239k1, sect163r1,
+    sect163k1, secp256r1, secp192r1, x25519, x448, brainpoolP160r1, brainpoolP160t1, brainpoolP192r1, brainpoolP192t1,
+    brainpoolP224r1, brainpoolP224t1, brainpoolP256r1, brainpoolP256t1, brainpoolP320r1, brainpoolP320t1,
+    brainpoolP384r1, brainpoolP384t1, brainpoolP512r1, brainpoolP512t1
+  ];
+supports(NamedCurve) ->
+  lists:member(NamedCurve, supports(curves)).
 
 % priv
 normalize_name(ed25519) -> x25519;

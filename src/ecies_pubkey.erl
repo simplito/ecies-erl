@@ -1,16 +1,20 @@
 -module(ecies_pubkey).
 
 -export([
-  supports/1,
-  
-  compress/1,
+ compress/1,
   compress/2,
   decompress/1,
   decompress/2,
   from_private/1,
   from_private/2,
   mul/2,
-  mul/3
+  mul/3,
+
+  supports/1,
+  supports_from_private/1,
+  supports_decompress/1,
+
+  point_bits/1
 ]).
 
 supports(curves) ->
@@ -26,6 +30,32 @@ supports(curves) ->
   ];
 supports(NamedCurve) ->
   lists:member(NamedCurve, supports(curves)).
+
+supports_from_private(curves) ->
+  [
+    % supports both point decompression and from_private
+    secp160k1, secp160r1, secp160r2, secp192k1, secp256k1, secp384r1, secp521r1, secp192r1, prime192v1, prime192v2,
+    prime192v3, prime239v1, prime239v2, prime239v3, secp256r1, prime256v1, wtls7, wtls9, brainpoolP160r1,
+    brainpoolP160t1, brainpoolP192r1, brainpoolP192t1, brainpoolP224r1, brainpoolP224t1, brainpoolP256r1,
+    brainpoolP256t1, brainpoolP320r1, brainpoolP320t1, brainpoolP384r1, brainpoolP384t1, brainpoolP512r1,
+    brainpoolP512t1, secp112r1, secp112r2, secp128r1, secp128r2, wtls6, wtls8,
+    % supports only from_private for now
+    secp224r1, secp224k1, wtls12
+  ];
+supports_from_private(NamedCurve) ->
+  lists:member(NamedCurve, supports_from_private(curves)).
+  
+supports_decompress(curves) ->
+  [
+    % supports both point decompression and from_private
+    secp160k1, secp160r1, secp160r2, secp192k1, secp256k1, secp384r1, secp521r1, secp192r1, prime192v1, prime192v2,
+    prime192v3, prime239v1, prime239v2, prime239v3, secp256r1, prime256v1, wtls7, wtls9, brainpoolP160r1,
+    brainpoolP160t1, brainpoolP192r1, brainpoolP192t1, brainpoolP224r1, brainpoolP224t1, brainpoolP256r1,
+    brainpoolP256t1, brainpoolP320r1, brainpoolP320t1, brainpoolP384r1, brainpoolP384t1, brainpoolP512r1,
+    brainpoolP512t1, secp112r1, secp112r2, secp128r1, secp128r2, wtls6, wtls8
+  ];
+supports_decompress(NamedCurve) ->
+  lists:member(NamedCurve, supports_decompress(curves)).
 
 
 compress(PubKey) ->
@@ -63,7 +93,7 @@ decompress(<<Tag, XY/binary>> = PubKey, #{ curve := NamedCurve }) when Tag == 2;
     3 -> ok;
     _ -> error(badarg, [PubKey, #{ curve => NamedCurve }])
   end,
-  Pbits = curve_bits(NamedCurve),
+  Pbits = point_bits(NamedCurve),
   <<X:Pbits>> = XY,
   Y2 = mod(X*X*X + A*X + B, P),
   BinY0 = crypto:mod_pow(Y2, (P + 1) div 4, P),
@@ -75,7 +105,7 @@ decompress(<<Tag, XY/binary>> = PubKey, #{ curve := NamedCurve }) when Tag == 2;
   end,
   <<4, X:Pbits, Y:Pbits>>;
 decompress(<<4, XY/binary>> = PubKey, #{ curve := NamedCurve }) ->
-  Pbits = curve_bits(NamedCurve),
+  Pbits = point_bits(NamedCurve),
   case XY of
     <<_:Pbits, _:Pbits>> -> ok;
     _ -> error(badarg)
@@ -88,8 +118,8 @@ from_private(PrivKey) ->
 from_private(PrivKey, #{ curve := NamedCurve } = _Params) when NamedCurve == x25519; NamedCurve == x448 ->
   error(badarg, [PrivKey, #{ curve => NamedCurve }]);
 from_private(PrivKey, #{ curve := NamedCurve } = Params) ->
-  G = curve_bin_G(NamedCurve),
-  mul(G, PrivKey, Params).
+  {_Field, _Curve, BasePoint, _Order, _Cofactor} = crypto_ec_curves:curve(NamedCurve),
+  mul(BasePoint, PrivKey, Params).
 
 mul(PubKey, PrivKey) ->
   mul(PubKey, PrivKey, ecies:default_params()).
@@ -103,25 +133,18 @@ mul(PubKey, PrivKey, #{ curve := NamedCurve } = Params) ->
   R = from_jacobian(JPS, C),
   p2b(R, Params).
 
-% priv
--spec curve_bin_G(ecies:named_curve()) -> binary().
-curve_bin_G(NamedCurve) ->
-  case crypto:ec_curve(NamedCurve) of
-    {_Field, _Curve, BasePoint, _Order, _Cofactor} -> BasePoint;
-    _ -> error(badarg, [NamedCurve])
-  end.
-
--spec curve_bits(ecies:named_curve()) -> integer().
-curve_bits(NamedCurve) ->
-  case crypto:ec_curve(NamedCurve) of
+-spec point_bits(ecies:named_curve()) -> integer().
+point_bits(NamedCurve) ->
+  case crypto_ec_curves:curve(NamedCurve) of
     {{prime_field, BinP}, _, _, _, _} -> byte_size(BinP) * 8;
-    {{characteristic_two_field, Bits, _}, _, _, _,_} -> ceil(Bits/8) * 8
+    {{characteristic_two_field, Bits, _}, _, _, _,_} -> ((Bits + 7) div 8) * 8
   end.
 
+% priv
 -spec curve_details(ecies:named_curve()) -> {A :: integer(), B :: integer(), P :: integer(), N :: integer()}.
 curve_details(NamedCurve) ->
   {BinA, BinB, BinP, BinN} =
-    case crypto:ec_curve(NamedCurve) of
+    case crypto_ec_curves:curve(NamedCurve) of
       {{prime_field, BinP0}, {BinA0, BinB0, _BinSeed}, _BinG, BinN0, _BinH} -> {BinA0, BinB0, BinP0, BinN0};
       _ -> error(badarg, [NamedCurve])
     end,
@@ -133,7 +156,7 @@ curve_details(NamedCurve) ->
   }.
 
 b2p(<<Tag, _/binary>> = Key, #{ curve := NamedCurve } = Params) when Tag == 2; Tag == 3; Tag == 4 ->
-  Pbits = curve_bits(NamedCurve),
+  Pbits = point_bits(NamedCurve),
   case decompress(Key, Params) of
     <<4, X:Pbits, Y:Pbits>> ->
       {X, Y};
@@ -142,7 +165,7 @@ b2p(<<Tag, _/binary>> = Key, #{ curve := NamedCurve } = Params) when Tag == 2; T
   end.
 
 p2b({Px, Py}, #{ curve := NamedCurve } = Params) ->
-  Pbits = curve_bits(NamedCurve),
+  Pbits = point_bits(NamedCurve),
   Bin = <<4,Px:Pbits, Py:Pbits>>,
   case maps:get(compress_pubkey, Params, true) of
     true -> compress(Bin, Params);
@@ -227,7 +250,7 @@ jacobian_double({Px, Py, Pz}, {CA, _CB, CP, _CN}) ->
 
 jacobian_mul({_X, 0 = _Y, _Z}, _S, _C) -> {0, 0, 1};
 jacobian_mul(_P, 0 = _S, _C) -> {0, 0, 1};
-jacobian_mul(P, S, {_CA, _CP, CN} = C) when S < 0; S > CN ->
+jacobian_mul(P, S, {_CA, _CB, _CP, CN} = C) when S < 0; S > CN ->
   jacobian_montgomery_mul(P, mod(S, CN), C);
 jacobian_mul(P, S, C) ->
   jacobian_montgomery_mul(P, S, C).

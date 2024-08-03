@@ -445,11 +445,10 @@ public_key_length(x25519, _Data) -> 32;
 public_key_length(x448, _Data)   -> 56;
 public_key_length(NamedCurve, Data) ->
   try
-    {_Field, _Curve, <<4, XY/binary>> = BasePoint, _Order, _CoFactor} = crypto:ec_curve(NamedCurve),
-    0 = byte_size(XY) band 1,
+    PointSize = ecies_pubkey:point_bits(NamedCurve) div 8,
     case binary:first(Data) of
-      4 -> byte_size(BasePoint);
-      N when N == 2; N == 3 -> 1 + byte_size(XY) div 2
+      4 -> 1 + 2 * PointSize;
+      N when N == 2; N == 3 -> 1 + PointSize
     end
   catch _:_ ->
     error(badarg, [NamedCurve])
