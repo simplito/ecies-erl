@@ -3,7 +3,7 @@
 -include_lib("eunit/include/eunit.hrl").
 
 supported_curves_basic_test_() ->
-  SupportedCurves = ecies_pem:supports(curves),
+  SupportedCurves = ecies_pem:supports(),
   [{
       atom_to_list(Curve) ++ " pem",
       fun() ->
@@ -21,7 +21,7 @@ supported_curves_basic_test_() ->
   } || Curve <- SupportedCurves].
 
 supported_curves_keypair_from_private_test_() ->
-  SupportedCurves = ordsets:intersection(ordsets:from_list(ecies_pem:supports(curves)), ordsets:from_list(ecies_pubkey:supports(curves))),
+  SupportedCurves = ordsets:intersection(ordsets:from_list(ecies_pem:supports()), ordsets:from_list(ecies_pubkey:supports_from_private())),
   [{
       atom_to_list(Curve) ++ " keypair from private pem",
     fun() ->
@@ -32,7 +32,7 @@ supported_curves_keypair_from_private_test_() ->
   } || Curve <- SupportedCurves].
 
 unsupported_curves_keypair_from_private_test_() ->
-  UnsupportedCurves = ordsets:subtract(ordsets:from_list(ecies_pem:supports(curves)), ordsets:from_list(ecies_pubkey:supports(curves))),
+  UnsupportedCurves = ordsets:subtract(ordsets:from_list(ecies_pem:supports()), ordsets:from_list(ecies_pubkey:supports_from_private())),
   [{
       atom_to_list(Curve) ++ " unsupported keypair from private pem",
     fun() ->

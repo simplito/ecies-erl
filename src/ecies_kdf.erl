@@ -1,11 +1,14 @@
+%% @doc This module contains standard key derivation functions.
 -module(ecies_kdf).
 
 -export([hkdf/5, hkdf_extract/3, hkdf_expand/4]).
 -export([kdf/4, concat_kdf/4]).
 
-% HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
-% https://datatracker.ietf.org/doc/html/rfc5869
-% https://datatracker.ietf.org/doc/html/rfc8418#section-2.2
+%% @doc
+%% HMAC-based Extract-and-Expand Key Derivation Function (HKDF)
+%%
+%% See <a href="https://datatracker.ietf.org/doc/html/rfc5869">RFC 5869</a> and
+%% <a href="https://datatracker.ietf.org/doc/html/rfc8418#section-2.2">RFC 8418</a>
 -spec hkdf(Hash, Key, Salt, Info, Length) -> Result
     when
       Hash :: atom(),
@@ -18,6 +21,7 @@ hkdf(Hash, Key, Salt, Info, Length) ->
   PRK = hkdf_extract(Hash, Key, Salt),
   hkdf_expand(Hash, PRK, Info, Length).
 
+%% @private
 -spec hkdf_extract(Hash, Salt, IKM) -> Result
     when
       Hash :: atom(),
@@ -31,6 +35,7 @@ hkdf_extract(Hash, <<>>, IKM) ->
 hkdf_extract(Hash, Salt, IKM) ->
     crypto:mac(hmac, Hash, Salt, IKM).
 
+%% @private
 -spec hkdf_expand(Hash, PRK, Info, Length) -> Result
     when
       Hash :: atom(),
@@ -49,8 +54,10 @@ hkdf_expand(Hash, PRK, Info, Length) ->
     Bin2 = iolist_to_binary(Bin1),
     binary:part(Bin2, 0, Length).
 
-% The ANSI-X9.63-KDF key derivation function.
-% https://datatracker.ietf.org/doc/html/rfc8418#section-2.1
+%% @doc
+%% The ANSI-X9.63-KDF key derivation function.
+%%
+%% See <a href="https://datatracker.ietf.org/doc/html/rfc8418#section-2.1">RFC 8418</a>
 -spec kdf(Hash, Key, Info, Length) -> Result
     when
       Hash :: atom(),
@@ -65,7 +72,8 @@ kdf(Hash, Key, Info, Length) ->
     Bin1 = iolist_to_binary(Bin0),
     binary:part(Bin1, 0, Length).
 
-% NIST SP 800-56 Concatenation Key Derivation Function (see section 5.8.1).
+%% @doc
+%% NIST SP 800-56 Concatenation Key Derivation Function (see section 5.8.1).
 -spec concat_kdf(Hash, Key, Info, Length) -> Result
   when
   Hash :: atom(),

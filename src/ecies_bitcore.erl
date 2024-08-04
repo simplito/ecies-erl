@@ -1,7 +1,15 @@
+%% @doc
+%% This module provides specific params defaults and overrides compatible with Bitcore ECIES implementation.
 -module(ecies_bitcore).
 
 -export([default_params/0, params/1]).
 
+%% @doc Default params compatible with bitcore ECIES implementation.
+%%
+%% Using `secp256k1' elliptic curve, HMAC SHA-256 with 256 bits output authentication tag using
+%% AES-128 256 encryption and embedded IV in cipher data.
+%% Additionally it provides callbacks for bitcore specific keys and IV derivation functions.
+-spec default_params() -> ecies:ecies_params().
 default_params() ->
   #{
     curve => secp256k1,
@@ -11,6 +19,9 @@ default_params() ->
     embedded_iv => true
   }.
 
+%% @doc Utility function for overriding default bitcore compatible params
+%% @equiv maps:merge(default_params(), Params)
+-spec params(Params :: map()) -> ecies:ecies_params().
 params(Params) ->
   maps:merge(default_params(), Params).
 

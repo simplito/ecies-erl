@@ -3,7 +3,7 @@
 -include_lib("eunit/include/eunit.hrl").
 
 from_private_curves_test_() ->
-  SupportedCurves = ecies_pubkey:supports_from_private(curves),
+  SupportedCurves = ecies_pubkey:supports_from_private(),
   [{
     atom_to_list(Curve) ++ " from_private",
     fun() ->

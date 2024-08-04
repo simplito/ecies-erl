@@ -48,6 +48,31 @@ In the above example the default params are used (as returned by `ecies:default_
   }.
 ```
 
+#### Openssl interoperability
+
+You can read or write keys in [PEM](https://datatracker.ietf.org/doc/html/rfc7468) format using function from `ecies_pem` module:
+
+- `ecies_pem:decode_public/1` - decodes a public key from the given "PUBLIC KEY" or "EC PRIVATE KEY" PEM format.
+- `ecies_pem:decode_private/1` - decodes a private key from the given "EC PRIVATE KEY" PEM format.
+- `ecies_pem:decode_keypair/1` - decodes both keys from the given "EC PRIVATE KEY" PEM format.
+- `ecies_pem:encode_public/1` - encodes a public key into "PUBLIC KEY" PEM format.
+- `ecies_pem:encode_private/1` - encodes a private key into "EC PRIVATE KEY" PEM format.
+- `ecies_pem:encode_keypair/1` - encodes both keys into "EC PRIVATE KEY" PEM format.
+
+Example:
+```shell
+openssl ecparam -noout -genkey -conv_form compressed -name secp256k1 | tee private.pem
+```
+```erlang
+{ok, Pem} = file:read_file("private.pem"),
+{Pub, Priv} = ecies_pem:decode_keypair(Pem),
+Pub = ecies_pem:decode_public(Pem),
+Priv = ecies_pem:decode_private(Pem),
+file:write_file("public.pem", ecies_pem:encode_public(Pub)).
+```
+```shell
+openssl ec -pubin -in public.pem -noout -text
+```
 ### Customisation
 
 Using `ecies:generate_key/1`, `ecies:public_encrypt/3`, `ecies:private_decrypt/3` functions which accepts extra `Params` argument you can customize elliptic curve and algorithms used in all steps of encryption/decryption process.

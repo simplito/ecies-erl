@@ -1,5 +1,5 @@
 %% @doc
-%% Module provides specific params defaults and overrides compatible with ethereum geth ECIES implementation.
+%% This module provides specific params defaults and overrides compatible with ethereum geth ECIES implementation.
 -module(ecies_geth).
 
 -export([
@@ -27,8 +27,8 @@ default_params() ->
     derive_keys     => fun derive_keys/1
   }.
 
-%% @doc Utility function for overriding default geth params
-%% @private
+%% @doc Utility function for overriding default geth compatible params
+%% @equiv maps:merge(default_params(), Params)
 -spec params(Params :: map()) -> ecies:ecies_params().
 params(Params) ->
   maps:merge(default_params(), Params).

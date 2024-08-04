@@ -1,3 +1,7 @@
+%% @doc This module contains functions for generating EC keys and encrypting, decrypting data using
+%% Elliptic Curve Integrated Encryption Scheme (ECIES).
+%%
+%%
 -module(ecies).
 
 -export([
@@ -82,7 +86,11 @@
     derive_keys => fun(),
     prepare_payload => fun(),
     decode => fun(),
-    encode => as_tuple | raw | fun()  % if true returns tuple {PublicKey, CipherText, MAC} instead of binary - default false
+    encode => as_tuple | raw | fun(),  % if true returns tuple {PublicKey, CipherText, MAC} instead of binary - default false
+
+    % keys below are filled automatically during encryption / decryption
+    others_public_key => public_key(),
+    _ => _
   }.
 
 

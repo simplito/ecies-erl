@@ -1,7 +1,18 @@
+%% @doc
+%% This module provides specific params defaults and overrides compatible with Electrum, Electron Cash, ElectrumSV
+%% and BitcoinSV ECIES implementation.
+%%
 -module(ecies_electrum).
 
 -export([default_params/0, params/1]).
 
+%% @doc Default params compatible with electrum BIE1 ECIES implementation.
+%%
+%% Using `secp256k1' elliptic curve, HMAC SHA-256 with 256 bits output authentication tag using
+%% AES-128 CBC encryption and BIE1 message encapsulation.
+%% Additionally it provides callback for electrum specific keys and IV derivation function, and proper
+%% cipher data encoding.
+-spec default_params() -> ecies:ecies_params().
 default_params() ->
   #{
     curve => secp256k1,
@@ -14,10 +25,13 @@ default_params() ->
     decode => fun decode/1
   }.
 
+%% @doc Utility function for overriding default electrum compatible params
+%% @equiv maps:merge(default_params(), Params)
 params(Params) ->
   maps:merge(default_params(), Params).
 
 % electrum specific overrides
+-spec shared_key(ecies:ecies_params()) -> {ok, ecies:ecies_params()}.
 shared_key(#{ others_public_key := OthersPublicKey, key := {_PublicKey, PrivateKey} } = State) ->
   % electrum is using modified ECDH with full (but compresses) public key as output, instead of just x coordinate
   SharedKey = ecies_pubkey:compress(ecies_pubkey:mul(OthersPublicKey, PrivateKey, State), default_params()),

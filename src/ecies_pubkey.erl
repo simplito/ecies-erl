@@ -1,3 +1,5 @@
+%% @doc This module contains functions for compressing, decompressing public key, deriving public key
+%% from the given private one and function for EC point multiplication.
 -module(ecies_pubkey).
 
 -export([
@@ -9,15 +11,18 @@
   from_private/2,
   mul/2,
   mul/3,
-
-  supports/1,
+  
+  supports_from_private/0,
   supports_from_private/1,
+  supports_decompress/0,
   supports_decompress/1,
 
   point_bits/1
 ]).
 
-supports(curves) ->
+%% @doc Returns a list of named curves that are supported by the `from_private/1' and `from_private/2' functions.
+-spec supports_from_private() -> list(ecies:named_curve()).
+supports_from_private() ->
   [
     % supports both point decompression and from_private
     secp160k1, secp160r1, secp160r2, secp192k1, secp256k1, secp384r1, secp521r1, secp192r1, prime192v1, prime192v2,
@@ -27,25 +32,16 @@ supports(curves) ->
     brainpoolP512t1, secp112r1, secp112r2, secp128r1, secp128r2, wtls6, wtls8,
     % supports only from_private for now
     secp224r1, secp224k1, wtls12
-  ];
-supports(NamedCurve) ->
-  lists:member(NamedCurve, supports(curves)).
+  ].
 
-supports_from_private(curves) ->
-  [
-    % supports both point decompression and from_private
-    secp160k1, secp160r1, secp160r2, secp192k1, secp256k1, secp384r1, secp521r1, secp192r1, prime192v1, prime192v2,
-    prime192v3, prime239v1, prime239v2, prime239v3, secp256r1, prime256v1, wtls7, wtls9, brainpoolP160r1,
-    brainpoolP160t1, brainpoolP192r1, brainpoolP192t1, brainpoolP224r1, brainpoolP224t1, brainpoolP256r1,
-    brainpoolP256t1, brainpoolP320r1, brainpoolP320t1, brainpoolP384r1, brainpoolP384t1, brainpoolP512r1,
-    brainpoolP512t1, secp112r1, secp112r2, secp128r1, secp128r2, wtls6, wtls8,
-    % supports only from_private for now
-    secp224r1, secp224k1, wtls12
-  ];
+%% @doc Checks if the given `NamedCurve' is supported by the `from_private/1' and `from_private/2' functions.
+-spec supports_from_private(NamedCurve :: ecies:named_curve()) -> boolean().
 supports_from_private(NamedCurve) ->
-  lists:member(NamedCurve, supports_from_private(curves)).
-  
-supports_decompress(curves) ->
+  lists:member(NamedCurve, supports_from_private()).
+
+%% @doc Returns a list of named curves that are supported by the `decompress/1' and `decompress/2' functions.
+-spec supports_decompress() -> list(ecies:named_curve()).
+supports_decompress() ->
   [
     % supports both point decompression and from_private
     secp160k1, secp160r1, secp160r2, secp192k1, secp256k1, secp384r1, secp521r1, secp192r1, prime192v1, prime192v2,
@@ -53,16 +49,22 @@ supports_decompress(curves) ->
     brainpoolP160t1, brainpoolP192r1, brainpoolP192t1, brainpoolP224r1, brainpoolP224t1, brainpoolP256r1,
     brainpoolP256t1, brainpoolP320r1, brainpoolP320t1, brainpoolP384r1, brainpoolP384t1, brainpoolP512r1,
     brainpoolP512t1, secp112r1, secp112r2, secp128r1, secp128r2, wtls6, wtls8
-  ];
+  ].
+
+%% @doc Checks if the given `NamedCurve' is supported by the `decompress/1' and `decompress/2' functions.
+-spec supports_decompress(NamedCurve :: ecies:named_curve()) -> boolean().
 supports_decompress(NamedCurve) ->
-  lists:member(NamedCurve, supports_decompress(curves)).
+  lists:member(NamedCurve, supports_decompress()).
 
-
+%% @doc Compresses the `PublicKey', which is a binary representation of an elliptic curve point.
+%% Returns the `PublicKey' unchanged if it is already in compressed form.
+%% @equiv compress(PubKey, ecies:default_params())
+-spec compress(ecies:public_key()) -> ecies:public_key().
 compress(PubKey) ->
   compress(PubKey, ecies:default_params()).
 
-%% @doc Utility function for compressing binary elliptic curve point representation
-%% Not valid for `x25519' and `x448' curves.
+%% @doc Compresses the `PublicKey', which is a binary representation of an elliptic curve point.
+%% Returns the `PublicKey' unchanged if it is already in compressed form.
 compress(PubKey, #{ curve := NamedCurve }) when NamedCurve == x25519; NamedCurve == x448 -> PubKey;
 compress(<<2,_/binary>> = PubKey, _Params) -> PubKey;
 compress(<<3,_/binary>> = PubKey, _Params) -> PubKey;
@@ -77,21 +79,28 @@ compress(<<4,XY/binary>>, _Params) ->
 compress(_PubKey, _Params) ->
   error(badarg).
 
-%% @doc Utility function for decompressing binary elliptic curve point representation
+%% @doc
+%% Decompresses the `PublicKey', which is a binary representation of an elliptic curve point.
 %%
-%% Not valid for `x25519' and `x448' curves.
-%% @equiv decompress(PubKey, ecies:default_params())
-decompress(PubKey) ->
-  decompress(PubKey, ecies:default_params()).
+%% If the `PublicKey' is already in decompressed form, it returns the `PublicKey' unchanged.
+%% @equiv decompress(PublicKey, ecies:default_params())
+-spec decompress(PublicKey :: ecies:public_key()) -> ecies:public_key().
+decompress(PublicKey) ->
+  decompress(PublicKey, ecies:default_params()).
 
-%% @doc Utility function for decompressing binary elliptic curve point representation
+%% @doc
+%% Decompresses the `PublicKey', which is a binary representation of an elliptic curve point.
 %%
-%% Not valid for `x25519' and `x448' curves.
-decompress(<<Tag, XY/binary>> = PubKey, #{ curve := NamedCurve }) when Tag == 2; Tag == 3 ->
+%% If the `PublicKey' is already in decompressed form, it returns the `PublicKey' unchanged.
+%% This function is only valid for curves returned by the `supports_decompress/0' function.
+%% @see supports_decompress/0
+%% @see supports_decompress/1
+-spec decompress(PublicKey :: ecies:public_key(), ecies:ecies_params()) -> ecies:public_key().
+decompress(<<Tag, XY/binary>> = PublicKey, #{ curve := NamedCurve }) when Tag == 2; Tag == 3 ->
   {A, B, P, _N} = curve_details(NamedCurve),
   case P band 3 of
     3 -> ok;
-    _ -> error(badarg, [PubKey, #{ curve => NamedCurve }])
+    _ -> error(badarg, [PublicKey, #{ curve => NamedCurve }])
   end,
   Pbits = point_bits(NamedCurve),
   <<X:Pbits>> = XY,
@@ -112,27 +121,49 @@ decompress(<<4, XY/binary>> = PubKey, #{ curve := NamedCurve }) ->
   end,
   PubKey.
 
+%% @doc Calculates a public key from the given `PrivateKey'.
+%% @equiv from_private(PrivateKey, ecies:default_params())
+-spec from_private(PrivateKey :: ecies:private_key()) -> ecies:public_key().
 from_private(PrivKey) ->
   from_private(PrivKey, ecies:default_params()).
 
+%% @doc Calculates a public key from the given `PrivateKey'.
+%%
+%% This function is only valid for curves returned by `supports_from_private/0'.
+%% @see supports_from_private/0
+%% @see supports_from_private/1
+-spec from_private(PrivateKey :: ecies:private_key(), ecies:ecies_params()) -> ecies:public_key().
 from_private(PrivKey, #{ curve := NamedCurve } = _Params) when NamedCurve == x25519; NamedCurve == x448 ->
   error(badarg, [PrivKey, #{ curve => NamedCurve }]);
 from_private(PrivKey, #{ curve := NamedCurve } = Params) ->
   {_Field, _Curve, BasePoint, _Order, _Cofactor} = crypto_ec_curves:curve(NamedCurve),
   mul(BasePoint, PrivKey, Params).
 
-mul(PubKey, PrivKey) ->
-  mul(PubKey, PrivKey, ecies:default_params()).
+%% @doc
+%% Calculates the multiplication of an elliptic curve point given by `PublicKey' by a scalar given by `PrivateKey'.
+%% @equiv mul(PublicKey, PrivateKey, ecies:default_params())
+-spec mul(PublicKey :: ecies:public_key(), PrivateKey :: ecies:private_key()) -> ecies:public_key().
+mul(PublicKey, PrivateKey) ->
+  mul(PublicKey, PrivateKey, ecies:default_params()).
 
-mul(PubKey, PrivKey, #{ curve := NamedCurve } = Params) ->
-  P = b2p(PubKey, Params),
-  S = crypto:bytes_to_integer(PrivKey),
+%% @doc
+%% Calculates the multiplication of an elliptic curve point given by `PublicKey' by a scalar given by `PrivateKey'.
+%%
+%% This function is only valid for curves returned by `supports_decompress/0'.
+%% @see supports_decompress/0
+%% @see supports_decompress/1
+-spec mul(ecies:public_key(), ecies:private_key(), ecies:ecies_params()) -> ecies:public_key().
+mul(PublicKey, PrivateKey, #{ curve := NamedCurve } = Params) ->
+  P = b2p(PublicKey, Params),
+  S = crypto:bytes_to_integer(PrivateKey),
   C = curve_details(NamedCurve),
   JP  = to_jacobian(P, C),
   JPS = jacobian_mul(JP, S, C),
   R = from_jacobian(JPS, C),
   p2b(R, Params).
 
+%% @doc Returns the number of bits required for the binary representation of a single coordinate of a point
+%% on a given elliptic curve.
 -spec point_bits(ecies:named_curve()) -> integer().
 point_bits(NamedCurve) ->
   case crypto_ec_curves:curve(NamedCurve) of

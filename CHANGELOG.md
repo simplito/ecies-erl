@@ -6,14 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2024-08-03
 
-Functions provided by `ecies_electrum` module depends no longer on `libsecp256k1` 
+Functions provided by `m:ecies_electrum` module depends no longer on `libsecp256k1` 
 and are working now without any additional dependecies.
 We also provide functions for standard encoding/decoding of keys in [PEM] format.
 
 ### Added
 
-- `ecies_pem` module with utility functions to encode/decode public/private/keypair to [PEM] format.
-- `ecies_pubkey` module with functions for compressing, decompressing public key and deriving public key 
+- `m:ecies_pem` module with utility functions to encode/decode public/private/keypair to [PEM] format.
+- `m:ecies_pubkey` module with functions for compressing, decompressing public key and deriving public key 
    from the given private one
 
 ## [1.0.0] - 2024-08-01
