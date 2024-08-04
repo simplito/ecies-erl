@@ -37,7 +37,7 @@ unsupported_curves_keypair_from_private_test_() ->
       atom_to_list(Curve) ++ " unsupported keypair from private pem",
     fun() ->
       Params = #{ curve => Curve },
-      {_Pub, Priv} = KeyPair = ecies:generate_key(Params),
+      {_Pub, Priv} = ecies:generate_key(Params),
       ?assertEqual(error, ecies_pem:decode_keypair(ecies_pem:encode_private(Priv, Params), Params))
     end
   } || Curve <- UnsupportedCurves].
