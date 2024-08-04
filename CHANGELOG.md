@@ -26,6 +26,6 @@ Initial release
 
 [PEM]: https://datatracker.ietf.org/doc/html/rfc7468
 
-[Unreleased]: https://github.com/simplito/ecies-erl/compare/v1.1.0..develop
-[1.1.0]: https://github.com/simplito/ecies-erl/compare/tag/v1.0.0..v1.1.0
+[Unreleased]: https://github.com/simplito/ecies-erl/compare/v1.1.0...develop
+[1.1.0]: https://github.com/simplito/ecies-erl/compare/tag/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/simplito/ecies-erl/releases/tag/v1.0.0
